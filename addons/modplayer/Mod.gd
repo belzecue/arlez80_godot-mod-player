@@ -2,12 +2,36 @@
 	MOD reader by Yui Kinomoto @arlez80
 """
 
+class Mod:
+	var name:String
+	var song_length:int
+	var unknown_number:int
+	var channel_count:int
+	var song_positions:Array
+	var magic:String
+	var patterns:Array
+	var samples:Array
+
+class ModSample:
+	var data:PoolByteArray
+	var name:String
+	var length:int
+	var fine_tune:int
+	var volume:int
+	var loop_start:int
+	var loop_length:int
+
+class ModPatternNote:
+	var sample_number:int
+	var key_number:int
+	var effect_command:int
+
 """
 	ファイルから読み込み
 	@param	path	File path
 	@return	smf
 """
-func read_file( path:String ):
+func read_file( path:String ) -> Mod:
 	var f:File = File.new( )
 
 	if not f.file_exists( path ):
@@ -27,7 +51,7 @@ func read_file( path:String ):
 	@param	data	PoolByteArray
 	@return	smf
 """
-func read_data( data:PoolByteArray ):
+func read_data( data:PoolByteArray ) -> Mod:
 	var stream:StreamPeerBuffer = StreamPeerBuffer.new( )
 	stream.set_data_array( data )
 	stream.big_endian = true
@@ -38,20 +62,21 @@ func read_data( data:PoolByteArray ):
 	@param	stream
 	@return	smf
 """
-func _read( stream:StreamPeerBuffer ):
-	var name:String = self._read_string( stream, 20 )
-	var samples = self._read_sample_informations( stream )
-	var song_length:int = stream.get_u8( )
-	var unknown_number:int = stream.get_u8( )
-	var song_positions = stream.get_partial_data( 128 )[1]
+func _read( stream:StreamPeerBuffer ) -> Mod:
+	var mod:Mod = Mod.new( )
+	mod.name = self._read_string( stream, 20 )
+	mod.samples = self._read_sample_informations( stream )
+	mod.song_length = stream.get_u8( )
+	mod.unknown_number = stream.get_u8( )
+	mod.song_positions = stream.get_partial_data( 128 )[1]
 	var max_song_position:int = 0
-	for sp in song_positions:
+	for sp in mod.song_positions:
 		if max_song_position < sp:
 			max_song_position = sp
 
-	var magic:String = self._read_string( stream, 4 )
+	mod.magic = self._read_string( stream, 4 )
 	var channel_count:int = 4
-	match magic:
+	match mod.magic:
 		"6CHN":
 			channel_count = 6
 		"FLT8", "8CHN", "CD81", "OKTA":
@@ -64,20 +89,12 @@ func _read( stream:StreamPeerBuffer ):
 			# print( "Unknown magic" )
 			# breakpoint
 			pass
+	mod.channel_count = channel_count
 
-	var patterns = self._read_patterns( stream, max_song_position, channel_count )
-	self._read_sample_data( stream, samples )
+	mod.patterns = self._read_patterns( stream, max_song_position, channel_count )
+	self._read_sample_data( stream, mod.samples )
 
-	return {
-		"name": name,
-		"song_length": song_length,
-		"unknown_number": unknown_number,
-		"song_positions": song_positions,
-		"magic": magic,
-
-		"patterns": patterns,
-		"samples": samples,
-	}
+	return mod
 
 """
 	サンプルのデータを読み込む
@@ -86,7 +103,7 @@ func _read_sample_informations( stream:StreamPeerBuffer ) -> Array:
 	var samples:Array = []
 
 	for i in range( 0, 31 ):
-		var sample = {}
+		var sample:ModSample = ModSample.new( )
 		sample.name = self._read_string( stream, 22 )
 		sample.length = stream.get_u16( ) * 2
 		sample.fine_tune = stream.get_u8( ) & 0x0F
@@ -103,8 +120,9 @@ func _read_sample_informations( stream:StreamPeerBuffer ) -> Array:
 """
 	パターンを読み込む
 """
-func _read_patterns( stream:StreamPeerBuffer, max_position:int, channels:int ):
+func _read_patterns( stream:StreamPeerBuffer, max_position:int, channels:int ) -> Array:
 	var patterns:Array = []
+
 	for position in range( 0, max_position ):
 		var pattern:Array = []
 		for i in range( 0, 64 ):
@@ -112,16 +130,15 @@ func _read_patterns( stream:StreamPeerBuffer, max_position:int, channels:int ):
 			for ch in range( 0, channels ):
 				var v1:int = stream.get_u16( )
 				var v2:int = stream.get_u16( )
-				var sample_number:int = ( ( v1 >> 8 ) & 0xF0 ) | ( ( v2 >> 12 ) & 0x0F )  
-				var key_number:int = v1 & 0x0FFF
-				var effect_command:int = v2 & 0x0FFF
-				line.append({
-					"sample_number": sample_number,
-					"key_number": key_number,
-					"effect_command": effect_command,
-				})
+				var mod_pattern_note: = ModPatternNote.new( )
+				mod_pattern_note.sample_number = ( ( v1 >> 8 ) & 0xF0 ) | ( ( v2 >> 12 ) & 0x0F )
+				mod_pattern_note.key_number = v1 & 0x0FFF
+				mod_pattern_note.effect_command = v2 & 0x0FFF
+				line.append( mod_pattern_note )
 			pattern.append( line )
 		patterns.append( pattern )
+
+	return patterns
 
 """
 	波形データ読み込む

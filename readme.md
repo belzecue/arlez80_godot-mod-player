@@ -1,6 +1,6 @@
 # Godot MOD Player
 
-Software MOD player library for Godot Engine 3.1 later
+Software MOD player library for Godot Engine 3.2 later
 
 ## License
 
