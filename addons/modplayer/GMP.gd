@@ -6,8 +6,7 @@ tool
 extends EditorPlugin
 
 func _enter_tree( ):
-	self.add_custom_type( "GodotModPlayer", "AudioStreamPlayer", preload("ModPlayer.gd") )
-	# , preload("icon.png")
+	self.add_custom_type( "GodotModPlayer", "Spatial", preload("ModPlayer.gd"), preload("icon.png") )
 
 func _exit_tree( ):
 	self.remove_custom_type( "GodotModPlayer" )

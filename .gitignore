@@ -1,8 +1,8 @@
 .dropbox.attr
 Thumbs.db
 .import/*
-data/*
 dev/*
+demo/*
 *.import
 default_bus_layout.tres
 default_env.tres
@@ -11,3 +11,5 @@ godot-mod-player.png
 icon.png
 project.godot
 TestScene.tscn
+TestScene.gd
+global.gd
